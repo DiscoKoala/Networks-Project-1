@@ -7,7 +7,7 @@
 
 #define BUFFSIZE 1000
 
-void fileTransfer(int connected_sd, char &buffer);
+void fileTransfer(int connected_sd);
 
 int main(int argc, char *argv[]){
   
@@ -16,7 +16,6 @@ int main(int argc, char *argv[]){
   int rc; /* return code from recvfrom */
   struct sockaddr_in server_address;
   struct sockaddr_in from_address;
-  char buffer[BUFFSIZE];
   //int flags = 0;
   socklen_t fromLength;
   int portNumber;
@@ -25,7 +24,8 @@ int main(int argc, char *argv[]){
     printf ("Usage is: server <portNumber>\n");
     exit (1);
   }
-  
+
+
   portNumber = atoi(argv[1]);
   
   sd = socket (AF_INET, SOCK_STREAM, 0);
@@ -36,6 +36,7 @@ int main(int argc, char *argv[]){
   server_address.sin_port = htons(portNumber);
   server_address.sin_addr.s_addr = INADDR_ANY;
   
+
   rc = bind (sd, (struct sockaddr*)&server_address, sizeof(server_address));
   if(rc<0){
     printf("Bind error\n");
@@ -44,20 +45,32 @@ int main(int argc, char *argv[]){
 
   listen (sd, 1);
   connected_sd = accept (sd, (struct sockaddr*) &from_address, &fromLength);
-  bzero (buffer, BUFFSIZE);
 
-  fileTransfer(connected_sd, buffer);
-  
+  fileTransfer(connected_sd);
+
+  // printf("%s", "Hello");
+
   close(connected_sd);
+
+  // printf("%s", "Hello");
+
+  if(listen(sd,1) < 0){
+    printf("%s", "Hello");
+    perror("listen");
+    exit(1);
+  }
   
   return 0;
   }
 
-void fileTransfer(int connected_sd, char &buffer){
+void fileTransfer(int connected_sd){
 
+  char buffer[BUFFSIZE];
   int fileSize;
   int fileNameSize;
   char fileName[20];
+
+  bzero(buffer, BUFFSIZE);
 
   int rc = read(connected_sd, &fileNameSize, sizeof(int));
   printf("Size of file name before conversion: %d\n", rc);
@@ -114,5 +127,7 @@ void fileTransfer(int connected_sd, char &buffer){
 
   fclose(inBoundFile);
 
-   write(connected_sd, &totalBytes, sizeof(totalBytes));
+  int convertedTotalBytes = htons(totalBytes);
+  
+  write(connected_sd, &convertedTotalBytes, sizeof(convertedTotalBytes));
 }

@@ -75,39 +75,41 @@ int main(int argc, char *argv[])
       exit(1);
     }
 
-    //    int numOfBytes = fread(buffer, 1, 100, outBoundFile);
-
     int numOfBytes = 0;
     while(numOfBytes <= fileSize){
       
       fread(buffer, 1, 100, outBoundFile);      
       rc = write(sd, buffer, sizeof(buffer));
       if(rc <= 0){
-	perror("write");
-	exit(1);
+	      perror("write");
+	      exit(1);
       }
       numOfBytes += rc;
     }
     
+    bzero(buffer, 100);
+
+    int totalBytes = 0;
+    rc = read(sd, &totalBytes, sizeof(int));
+
+    int convertedTotalBytes = ntohs(totalBytes);
+
+    printf("\nwrote %d bytes\n\n", convertedTotalBytes);
+
     printf("What is the name of the file you would like to send?: ");
     scanf("%s", fileName);
    
     if(strcmp(fileName, "DONE")){
-	break;
-      }
+      close(sd);
+	    break;
+    }
   }
-   
-  rc = read(sd, &buffer, sizeof(int));
-  
-  printf("wrote %d bytes\n", rc);
 
   if (rc < 0)
     perror ("sendto");
   printf ("sent %d bytes\n", rc);
 
   fclose(outBoundFile);
-
-  close(sd);
   
   return 0 ;
 }
