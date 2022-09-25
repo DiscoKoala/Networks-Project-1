@@ -38,16 +38,22 @@ int main(int argc, char *argv[])
     perror("error connecting stream socket");
     exit(1);
   }
-
-   printf("What is the name of the file you would like to send?: ");
-   scanf("%s", fileName);
    
-   for(;;){
+   while(1){
     
+    printf("What is the name of the file you would like to send?: ");
+    scanf("%s", fileName);
+
+    if(strcmp(fileName, "DONE") == 0){
+      close(sd);
+	    break;
+    }
     // Once connected, loop through file transfer procedure.
+
     int fileNameSize = strlen(fileName);
-    int converted_fileNameSize = htons(fileNameSize);
+    int converted_fileNameSize = htonl(fileNameSize);
     
+    // 1
     rc = write(sd, &converted_fileNameSize, sizeof(converted_fileNameSize));
 
     if(rc<0){
@@ -55,7 +61,10 @@ int main(int argc, char *argv[])
       exit(1);
     }
 
+    // 2
     rc =  write(sd, &fileName, strlen(fileName));
+
+    printf("%s\n" , fileName);
 
     if(rc<0){
       printf("File name issue");
@@ -66,8 +75,9 @@ int main(int argc, char *argv[])
     outBoundFile = fopen(fileName, "r");
 
     int fileSize = getFileLength(outBoundFile);
-    int converted_fileSize = htons(fileSize);
-  
+    int converted_fileSize = htonl(fileSize);
+
+    // 3
     rc = write(sd, &converted_fileSize, sizeof(converted_fileSize));
 
     if(rc<0){
@@ -78,7 +88,8 @@ int main(int argc, char *argv[])
     int numOfBytes = 0;
     while(numOfBytes <= fileSize){
       
-      fread(buffer, 1, 100, outBoundFile);      
+      fread(buffer, 1, 100, outBoundFile);     
+      // 4 
       rc = write(sd, buffer, sizeof(buffer));
       if(rc <= 0){
 	      perror("write");
@@ -86,23 +97,22 @@ int main(int argc, char *argv[])
       }
       numOfBytes += rc;
     }
-    
-    bzero(buffer, 100);
+    printf("%s", buffer);
+
 
     int totalBytes = 0;
     rc = read(sd, &totalBytes, sizeof(int));
 
-    int convertedTotalBytes = ntohs(totalBytes);
+    int convertedTotalBytes = ntohl(totalBytes);
 
-    printf("\nwrote %d bytes\n\n", convertedTotalBytes);
+    printf("\n%d bytes written\n\n", convertedTotalBytes);
 
-    printf("What is the name of the file you would like to send?: ");
-    scanf("%s", fileName);
+    bzero(buffer, 100);
+
+    // printf("What is the name of the file you would like to send?: ");
+    // scanf("%s", fileName);
    
-    if(strcmp(fileName, "DONE")){
-      close(sd);
-	    break;
-    }
+
   }
 
   if (rc < 0)

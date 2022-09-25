@@ -43,91 +43,94 @@ int main(int argc, char *argv[]){
     exit(1);
   }
 
-  listen (sd, 1);
-  connected_sd = accept (sd, (struct sockaddr*) &from_address, &fromLength);
-
-  fileTransfer(connected_sd);
-
+  while(1){
+    printf("%s", "Listening...\n\n");
+    listen (sd, 1);
+    connected_sd = accept (sd, (struct sockaddr*) &from_address, &fromLength);
+    fileTransfer(connected_sd);
+    // printf("%s", "Hello");
+    close(connected_sd);
   // printf("%s", "Hello");
-
-  close(connected_sd);
-
-  // printf("%s", "Hello");
-
-  if(listen(sd,1) < 0){
-    printf("%s", "Hello");
-    perror("listen");
-    exit(1);
   }
-  
   return 0;
-  }
+}
 
 void fileTransfer(int connected_sd){
 
   char buffer[BUFFSIZE];
-  int fileSize;
-  int fileNameSize;
+  int fileSize = 0;
+  int fileNameSize = 0;
   char fileName[20];
 
   bzero(buffer, BUFFSIZE);
 
-  int rc = read(connected_sd, &fileNameSize, sizeof(int));
-  printf("Size of file name before conversion: %d\n", rc);
-  
-  fileNameSize = ntohs(fileNameSize);
-  printf("Size of file name after conversion: %d\n", fileNameSize);
-  
-  if(rc<0){
-    printf("Error receiving file name size\n");
-    exit(1);
-  }
+  for(;;){
 
-  int numOfBytes = 0;
-  char *ptr = buffer;
-  while(numOfBytes < fileNameSize){
-    rc = read(connected_sd, ptr, fileNameSize - numOfBytes);
-    printf("in loop, read %d bytes\n", rc);
-    if(rc<=0){
-      perror("read");
+    // 1
+    int rc = read(connected_sd, &fileNameSize, sizeof(int));
+    printf("Size of file name before conversion: %d\n", rc);
+    if(rc == 0){
+      return;
+    }
+    
+    fileNameSize = ntohl(fileNameSize);
+    printf("Size of file name after conversion: %d\n", fileNameSize);
+    
+    if(rc<0){
+      printf("Error receiving file name size\n");
       exit(1);
     }
-    numOfBytes += rc;
-    ptr += rc;
-  }
-  strcpy(fileName, buffer);
-  printf("Received file name from client: %s\n", buffer);
-  bzero(buffer, BUFFSIZE);
-  
-  read(connected_sd, &fileSize, sizeof(int));
-  printf("Size of received file before conversion: %d\n", fileSize);
 
-  fileSize = ntohs(fileSize);
-  printf("Size of file after conversion: %d\n", fileSize);
-
-  FILE *inBoundFile = fopen(fileName, "w");
-  
-  int totalBytes = 0;
-  int bytesWritten = 0;
-  numOfBytes = 0;
-  
-  while(numOfBytes < fileSize){
-
-    rc = read(connected_sd, buffer, fileSize - numOfBytes);
-    bytesWritten = fwrite(buffer, 1, rc, inBoundFile);
+    int numOfBytes = 0;
+    char *ptr = buffer;
+    while(numOfBytes < fileNameSize){
+      // 2
+      rc = read(connected_sd, ptr, fileNameSize - numOfBytes);
+      printf("in loop, read %d bytes\n", rc);
+      if(rc<=0){
+        perror("read");
+        exit(1);
+      }
+      numOfBytes += rc;
+      ptr += rc;
+    }
+    strcpy(fileName, buffer);
+    printf("Received file name from client: %s\n", buffer);
+    printf("%s\n" , fileName);
+    // bzero(buffer, BUFFSIZE);
     
-    printf("in loop, Read %d bytes\n", rc);
-    if(rc <= 0){
-      perror("read");
-      exit(1);
-    }   
-    numOfBytes += rc;
-    totalBytes += rc;
+    // 3
+    read(connected_sd, &fileSize, sizeof(int));
+    printf("Size of received file before conversion: %d\n", fileSize);
+
+    fileSize = ntohl(fileSize);
+    printf("Size of file after conversion: %d\n", fileSize);
+
+    FILE *inBoundFile = fopen(fileName, "w");
+    
+    int totalBytes = 0;
+    int bytesWritten = 0;
+    numOfBytes = 0;
+    
+    while(numOfBytes < fileSize){
+
+      // 4
+      rc = read(connected_sd, buffer, fileSize - numOfBytes);
+      bytesWritten = fwrite(buffer, 1, rc, inBoundFile);
+      
+      printf("in loop, Read %d bytes\n", rc);
+      if(rc <= 0){
+        perror("read");
+        exit(1);
+      }   
+
+      numOfBytes += rc;
+      totalBytes += rc;
+    }
+
+    fclose(inBoundFile);
+    // bzero(buffer, BUFFSIZE);
+    int convertedTotalBytes = htonl(totalBytes);
+    write(connected_sd, &convertedTotalBytes, sizeof(convertedTotalBytes));
   }
-
-  fclose(inBoundFile);
-
-  int convertedTotalBytes = htons(totalBytes);
-  
-  write(connected_sd, &convertedTotalBytes, sizeof(convertedTotalBytes));
 }
