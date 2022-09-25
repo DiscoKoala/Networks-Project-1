@@ -49,9 +49,9 @@ int main(int argc, char *argv[]){
     connected_sd = accept (sd, (struct sockaddr*) &from_address, &fromLength);
     fileTransfer(connected_sd);
     // printf("%s", "Hello");
-    close(connected_sd);
-  // printf("%s", "Hello");
   }
+
+  close(sd);
   return 0;
 }
 
@@ -61,16 +61,19 @@ void fileTransfer(int connected_sd){
   int fileSize = 0;
   int fileNameSize = 0;
   char fileName[20];
+  int rc = 0;
+  int connected ;
 
   bzero(buffer, BUFFSIZE);
 
-  for(;;){
-
+  while((connected = read(connected_sd, &buffer, sizeof(buffer)-1))){
+    
     // 1
-    int rc = read(connected_sd, &fileNameSize, sizeof(int));
+    rc = read(connected_sd, &fileNameSize, sizeof(int));
     printf("Size of file name before conversion: %d\n", rc);
-    if(rc == 0){
-      return;
+    if(rc < 0){
+      connected = 1;
+      close(connected_sd);
     }
     
     fileNameSize = ntohl(fileNameSize);
@@ -129,8 +132,9 @@ void fileTransfer(int connected_sd){
     }
 
     fclose(inBoundFile);
-    // bzero(buffer, BUFFSIZE);
+
     int convertedTotalBytes = htonl(totalBytes);
     write(connected_sd, &convertedTotalBytes, sizeof(convertedTotalBytes));
+    rc = 0;
   }
 }

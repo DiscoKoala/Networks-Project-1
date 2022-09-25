@@ -45,7 +45,6 @@ int main(int argc, char *argv[])
     scanf("%s", fileName);
 
     if(strcmp(fileName, "DONE") == 0){
-      close(sd);
 	    break;
     }
     // Once connected, loop through file transfer procedure.
@@ -63,8 +62,6 @@ int main(int argc, char *argv[])
 
     // 2
     rc =  write(sd, &fileName, strlen(fileName));
-
-    printf("%s\n" , fileName);
 
     if(rc<0){
       printf("File name issue");
@@ -97,8 +94,6 @@ int main(int argc, char *argv[])
       }
       numOfBytes += rc;
     }
-    printf("%s", buffer);
-
 
     int totalBytes = 0;
     rc = read(sd, &totalBytes, sizeof(int));
@@ -108,11 +103,11 @@ int main(int argc, char *argv[])
     printf("\n%d bytes written\n\n", convertedTotalBytes);
 
     bzero(buffer, 100);
+    rc = 0;
 
     // printf("What is the name of the file you would like to send?: ");
     // scanf("%s", fileName);
    
-
   }
 
   if (rc < 0)
