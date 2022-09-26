@@ -43,12 +43,12 @@ int main(int argc, char *argv[]){
     exit(1);
   }
 
-  while(1){
+  for(;;){
     printf("%s", "Listening...\n\n");
     listen (sd, 1);
     connected_sd = accept (sd, (struct sockaddr*) &from_address, &fromLength);
     fileTransfer(connected_sd);
-    // printf("%s", "Hello");
+    close(connected_sd);
   }
 
   close(sd);
@@ -62,27 +62,26 @@ void fileTransfer(int connected_sd){
   int fileNameSize = 0;
   char fileName[20];
   int rc = 0;
-  int connected ;
 
-  bzero(buffer, BUFFSIZE);
+  while(1){
 
-  while((connected = read(connected_sd, &buffer, sizeof(buffer)-1))){
-    
+    bzero(buffer, BUFFSIZE);
     // 1
-    rc = read(connected_sd, &fileNameSize, sizeof(int));
+    rc = read(connected_sd, &fileNameSize, sizeof(fileNameSize));
     printf("Size of file name before conversion: %d\n", rc);
-    if(rc < 0){
-      connected = 1;
-      close(connected_sd);
+    // bzero(buffer, BUFFSIZE);
+    
+    if(rc<=0){
+      return;
     }
-    
-    fileNameSize = ntohl(fileNameSize);
-    printf("Size of file name after conversion: %d\n", fileNameSize);
-    
+
     if(rc<0){
       printf("Error receiving file name size\n");
       exit(1);
     }
+    
+    fileNameSize = ntohl(fileNameSize);
+    printf("Size of file name after conversion: %d\n", fileNameSize);
 
     int numOfBytes = 0;
     char *ptr = buffer;
@@ -97,31 +96,44 @@ void fileTransfer(int connected_sd){
       numOfBytes += rc;
       ptr += rc;
     }
-    strcpy(fileName, buffer);
+
+    sprintf(fileName, "%s", buffer);
     printf("Received file name from client: %s\n", buffer);
-    printf("%s\n" , fileName);
-    // bzero(buffer, BUFFSIZE);
+    // printf("%s\n" , fileName);
+    bzero(buffer, BUFFSIZE);
     
     // 3
-    read(connected_sd, &fileSize, sizeof(int));
+    rc = read(connected_sd, &fileSize, sizeof(int));
     printf("Size of received file before conversion: %d\n", fileSize);
+    if(rc < 0){
+      perror("read");
+      exit(1);
+    }
 
     fileSize = ntohl(fileSize);
     printf("Size of file after conversion: %d\n", fileSize);
 
     FILE *inBoundFile = fopen(fileName, "w");
+    if(inBoundFile == NULL){
+      exit(1);
+    }
     
     int totalBytes = 0;
-    int bytesWritten = 0;
     numOfBytes = 0;
-    
+
     while(numOfBytes < fileSize){
 
       // 4
-      rc = read(connected_sd, buffer, fileSize - numOfBytes);
-      bytesWritten = fwrite(buffer, 1, rc, inBoundFile);
+      rc = read(connected_sd, buffer, BUFFSIZE);
+      if(rc < 0){
+        perror("read");
+        exit(1);
+      }
+      // printf("%s", "Hello3\n");
+
+      fwrite(buffer, 1, rc, inBoundFile);
       
-      printf("in loop, Read %d bytes\n", rc);
+      printf("in loop, Read %d bytes\n\n", rc);
       if(rc <= 0){
         perror("read");
         exit(1);
@@ -131,10 +143,12 @@ void fileTransfer(int connected_sd){
       totalBytes += rc;
     }
 
+    bzero(buffer, BUFFSIZE);
     fclose(inBoundFile);
 
     int convertedTotalBytes = htonl(totalBytes);
     write(connected_sd, &convertedTotalBytes, sizeof(convertedTotalBytes));
-    rc = 0;
+    bzero(buffer, BUFFSIZE);
+
   }
 }
